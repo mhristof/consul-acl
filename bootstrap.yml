@@ -1,0 +1,15 @@
+---
+- hosts: all
+  gather_facts: false
+
+  tasks:
+
+    - name: wait for the ssh port
+      delegate_to: localhost
+      become: false
+      wait_for:
+        port: 22
+        host: '{{ ansible_host }}'
+
+    - raw: apt-get update  && apt-get install python -y
+      changed_when: false

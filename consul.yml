@@ -1,0 +1,61 @@
+---
+- hosts: consul:consul-leaders
+
+  vars:
+    enabled: true
+
+  handlers:
+    - name: restart consul
+      systemd:
+        name: consul
+        state: restarted
+        daemon_reload: true
+
+  tasks:
+    - name: apt-get stuff
+      package:
+        name: unzip
+        state: present
+
+    - name: wget consul
+      get_url:
+        url: https://releases.hashicorp.com/consul/1.4.0/consul_1.4.0_linux_amd64.zip
+        dest: /usr/local/etc/consul.zip
+        checksum: 'sha256:41f8c3d63a18ef4e51372522c1e052618cdfcffa3d9f02dba0b50820e8279824'
+
+    - name: Unzip consul
+      unarchive:
+        src: /usr/local/etc/consul.zip
+        dest: /usr/bin
+        mode: 0755
+        remote_src: true
+
+    - include: tokens.yml
+    - name: generate agent token
+      set_fact:
+        agent_token: '{{ lookup("password", "/dev/null length=32") | to_uuid }}'
+        master_token: '{{ lookup("password", "/dev/null length=64") | to_uuid }}'
+      when:
+        - agent_token is not defined
+        - master_token is not defined
+      run_once: true
+
+    - name: deploy consul config
+      copy:
+        content: '{{ config | to_nice_json }}'
+        dest: /etc/consul.json
+      tags: config
+      notify: restart consul
+
+    - name: deploy service file
+      template:
+        src: consul.service
+        dest: /lib/systemd/system/consul.service
+      notify: restart consul
+
+    - name: delete data
+      shell: systemctl stop consul; rm -rf /tmp/*
+      notify: restart consul
+      tags:
+        - never
+        - delete

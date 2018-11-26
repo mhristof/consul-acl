@@ -1,0 +1,45 @@
+---
+
+- hosts: all
+
+  tasks:
+    - include: token.yml
+
+    - name: upload agent policy
+      copy:
+        src: ./agent-policy.hcl
+        dest: /etc/agent-policy.hcl
+
+    - name: create policy
+      shell: consul acl policy create  -name "agent-token" -description "Agent Token Policy" -rules @/etc/agent-policy.hcl -token={{ token }} || true
+      register: policy
+      run_once: true
+
+    - name: Create tokens for the agents
+      shell: consul acl token create -description "Agent Token {{ item }}" -policy-name "agent-token" -token=foobar | grep SecretID | awk '{print $2}'
+      with_items:
+        - '{{ groups["consul"] }}'
+      register: tokens
+      run_once: true
+
+    - debug: var=tokens
+
+    - name: create host_vars
+      file:
+        dest: host_vars/{{ item.item }}
+        state: directory
+      become: false
+      delegate_to: localhost
+      run_once: true
+      with_items:
+        - '{{ tokens.results }}'
+
+    - name: dump tokens to disk
+      copy:
+        content: 'token: {{ item.stdout }}'
+        dest: host_vars/{{ item.item }}/token.yml
+      become: false
+      delegate_to: localhost
+      run_once: true
+      with_items:
+        - '{{ tokens.results }}'

@@ -1,0 +1,13 @@
+config:
+  primary_datacenter: dc1
+  acl:
+    enabled: '{{ enabled|bool }}'
+    default_policy: 'deny'
+    down_policy: 'extend-cache'
+    tokens:
+      agent: '{{ agent_token }}'
+  data_dir: /tmp
+  retry_join:
+    - 'provider=aws tag_key=Environment tag_value=dev'
+
+acl_field: agent

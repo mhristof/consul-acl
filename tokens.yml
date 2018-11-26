@@ -1,0 +1,20 @@
+---
+
+- name: check config file
+  stat:
+    path: /etc/consul.json
+  register: consul_json
+
+- block:
+  - name: load config file
+    slurp:
+      path: /etc/consul.json
+    register: live_config
+
+  - debug: msg="{{ (live_config.content|b64decode | from_json).acl.tokens }}"
+  - name: extract tokens
+    set_fact:
+      agent_token: '{{  (live_config.content|b64decode | from_json).acl.tokens.agent }}'
+      master_token: '{{ (live_config.content|b64decode | from_json).acl.tokens.master|default("invalid") }}'
+  when: consul_json.stat.exists
+

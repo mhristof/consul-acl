@@ -1,0 +1,11 @@
+[Unit]
+Description=Consul server
+After=networking.service
+
+[Service]
+{% if leader is defined and leader|bool %}
+ExecStart=/usr/bin/consul agent -server -config-file /etc/consul.json
+{% else %}
+ExecStart=/usr/bin/consul agent -config-file /etc/consul.json
+{% endif %}
+
